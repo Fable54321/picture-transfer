@@ -13,6 +13,13 @@ type UploadedPicture = {
   download_url: string;
 };
 
+type SelectedPicture = {
+  id: string;
+  file: File;
+  preview_url: string;
+  description: string;
+};
+
 type ListPicturesResponse = {
   pictures: UploadedPicture[];
   next_continuation_token: string | null;
@@ -75,16 +82,21 @@ const requestJson = async <T,>(
 
 function App() {
   const [pictures, setPictures] = useState<UploadedPicture[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [description, setDescription] = useState("");
+  const [selectedPictures, setSelectedPictures] = useState<SelectedPicture[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
 
   const selectedSize = useMemo(
-    () => selectedFiles.reduce((total, file) => total + file.size, 0),
-    [selectedFiles],
+    () =>
+      selectedPictures.reduce(
+        (total, selectedPicture) => total + selectedPicture.file.size,
+        0,
+      ),
+    [selectedPictures],
   );
 
   const loadPictures = async () => {
@@ -112,7 +124,28 @@ function App() {
   }, []);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSelectedFiles(Array.from(event.target.files ?? []));
+    setSelectedPictures((currentPictures) => {
+      currentPictures.forEach((picture) => {
+        URL.revokeObjectURL(picture.preview_url);
+      });
+
+      return Array.from(event.target.files ?? []).map((file, index) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}-${index}`,
+        file,
+        preview_url: URL.createObjectURL(file),
+        description: "",
+      }));
+    });
+    setStatus("");
+    setError("");
+  };
+
+  const updateSelectedPictureDescription = (id: string, description: string) => {
+    setSelectedPictures((currentPictures) =>
+      currentPictures.map((picture) =>
+        picture.id === id ? { ...picture, description } : picture,
+      ),
+    );
     setStatus("");
     setError("");
   };
@@ -120,47 +153,57 @@ function App() {
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (selectedFiles.length === 0) {
+    if (selectedPictures.length === 0) {
       setError("Choose at least one picture to upload.");
       return;
     }
-
-    const trimmedDescription = description.trim();
-
-    if (!trimmedDescription) {
-      setError("Add a description before uploading.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("description", trimmedDescription);
-    selectedFiles.forEach((file) => formData.append("pictures", file));
 
     setIsUploading(true);
     setError("");
     setStatus("");
 
     try {
-      const data = await requestJson<UploadPicturesResponse>(
-        PICTURE_TRANSFER_URL,
-        {
-          method: "POST",
-          body: formData,
-        },
+      const uploadedPictureGroups = await Promise.all(
+        selectedPictures.map((selectedPicture) => {
+          const formData = new FormData();
+          formData.append("description", selectedPicture.description.trim());
+          formData.append("pictures", selectedPicture.file);
+
+          return requestJson<UploadPicturesResponse>(PICTURE_TRANSFER_URL, {
+            method: "POST",
+            body: formData,
+          });
+        }),
       );
+      const uploadedPictures = uploadedPictureGroups.flatMap((data, index) => {
+        const description = selectedPictures[index]?.description.trim();
+
+        return data.pictures.map((picture) => ({
+          ...picture,
+          description: picture.description || description,
+        }));
+      });
 
       setPictures((currentPictures) => [
-        ...data.pictures,
+        ...uploadedPictures,
         ...currentPictures.filter(
           (picture) =>
-            !data.pictures.some(
+            !uploadedPictures.some(
               (uploadedPicture) => uploadedPicture.key === picture.key,
             ),
         ),
       ]);
-      setSelectedFiles([]);
-      setDescription("");
-      setStatus(data.message);
+      setSelectedPictures((currentPictures) => {
+        currentPictures.forEach((picture) => {
+          URL.revokeObjectURL(picture.preview_url);
+        });
+        return [];
+      });
+      setStatus(
+        uploadedPictures.length === 1
+          ? "Picture uploaded."
+          : `${uploadedPictures.length} pictures uploaded.`,
+      );
 
       const fileInput = event.currentTarget.elements.namedItem(
         "pictures",
@@ -235,42 +278,53 @@ function App() {
           </span>
         </label>
 
-        <label className="description-field">
-          <span>Description</span>
-          <textarea
-            maxLength={500}
-            name="description"
-            onChange={(event) => {
-              setDescription(event.target.value);
-              setStatus("");
-              setError("");
-            }}
-            placeholder="Add a short description for this upload"
-            required
-            rows={4}
-            value={description}
-          />
-        </label>
+        {selectedPictures.length > 0 && (
+          <div className="selected-picture-list">
+            {selectedPictures.map((picture) => (
+              <article className="selected-picture" key={picture.id}>
+                <img alt="" src={picture.preview_url} />
+                <div>
+                  <strong title={picture.file.name}>{picture.file.name}</strong>
+                  <span>{formatBytes(picture.file.size)}</span>
+                  <label className="description-field">
+                    <span>Description</span>
+                    <textarea
+                      maxLength={500}
+                      name={`description-${picture.id}`}
+                      onChange={(event) =>
+                        updateSelectedPictureDescription(
+                          picture.id,
+                          event.target.value,
+                        )
+                      }
+                      placeholder="añade una breve descripción"
+                      rows={3}
+                      value={picture.description}
+                    />
+                  </label>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
 
         <div className="upload-actions">
           <div>
             <strong>
-              {selectedFiles.length === 0
-                ? "No files selected"
-                : `${selectedFiles.length} selected`}
+              {selectedPictures.length === 0
+                ? "No hay archivos seleccionados"
+                : `${selectedPictures.length} archivos seleccionados`}
             </strong>
-            {selectedFiles.length > 0 && <span>{formatBytes(selectedSize)}</span>}
+            {selectedPictures.length > 0 && (
+              <span>{formatBytes(selectedSize)}</span>
+            )}
           </div>
           <button
             className="primary-button"
-            disabled={
-              isUploading ||
-              selectedFiles.length === 0 ||
-              description.trim().length === 0
-            }
+            disabled={isUploading || selectedPictures.length === 0}
             type="submit"
           >
-            {isUploading ? "Uploading..." : "Upload"}
+            {isUploading ? "subiendo..." : "subir"}
           </button>
         </div>
       </form>
@@ -280,14 +334,14 @@ function App() {
 
       <section className="picture-section">
         <div className="section-heading">
-          <h2>Pictures</h2>
-          <span>{pictures.length} available</span>
+          <h2>Fotos</h2>
+          <span>{pictures.length} disponibles</span>
         </div>
 
         {isLoading ? (
           <p className="empty-state">Loading pictures...</p>
         ) : pictures.length === 0 ? (
-          <p className="empty-state">No pictures have been uploaded yet.</p>
+          <p className="empty-state">Aún no se ha subido ninguna foto</p>
         ) : (
           <div className="picture-grid">
             {pictures.map((picture) => (
