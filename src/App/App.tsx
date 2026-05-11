@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import { fetchWithAuth } from "../Utils/fetchWithAuth";
 import "../App.css";
 
 type UploadedPicture = {
   key: string;
   file_name: string;
+  description?: string;
   content_type?: string;
   size_bytes: number;
   uploaded_at?: string;
@@ -24,7 +24,8 @@ type UploadPicturesResponse = {
   pictures: UploadedPicture[];
 };
 
-const PICTURE_TRANSFER_PATH = "/picture-transfer";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "";
+const PICTURE_TRANSFER_URL = `${API_BASE_URL}/picture-transfer`;
 
 const formatBytes = (bytes: number) => {
   if (bytes === 0) {
@@ -43,9 +44,39 @@ const formatBytes = (bytes: number) => {
   }`;
 };
 
+const getErrorMessage = async (response: Response) => {
+  try {
+    const body = (await response.json()) as { error?: string; message?: string };
+    return (
+      body.error ||
+      body.message ||
+      `Request failed with status ${response.status}`
+    );
+  } catch {
+    return `Request failed with status ${response.status}`;
+  }
+};
+
+const requestJson = async <T,>(
+  url: string,
+  options: RequestInit = {},
+): Promise<T> => {
+  const response = await fetch(url, {
+    ...options,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response));
+  }
+
+  return response.json() as Promise<T>;
+};
+
 function App() {
   const [pictures, setPictures] = useState<UploadedPicture[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
@@ -61,8 +92,8 @@ function App() {
     setError("");
 
     try {
-      const data = await fetchWithAuth<ListPicturesResponse>(
-        `${PICTURE_TRANSFER_PATH}?limit=100`,
+      const data = await requestJson<ListPicturesResponse>(
+        `${PICTURE_TRANSFER_URL}?limit=100`,
       );
       setPictures(data.pictures);
     } catch (loadError) {
@@ -94,7 +125,15 @@ function App() {
       return;
     }
 
+    const trimmedDescription = description.trim();
+
+    if (!trimmedDescription) {
+      setError("Add a description before uploading.");
+      return;
+    }
+
     const formData = new FormData();
+    formData.append("description", trimmedDescription);
     selectedFiles.forEach((file) => formData.append("pictures", file));
 
     setIsUploading(true);
@@ -102,8 +141,8 @@ function App() {
     setStatus("");
 
     try {
-      const data = await fetchWithAuth<UploadPicturesResponse>(
-        PICTURE_TRANSFER_PATH,
+      const data = await requestJson<UploadPicturesResponse>(
+        PICTURE_TRANSFER_URL,
         {
           method: "POST",
           body: formData,
@@ -120,6 +159,7 @@ function App() {
         ),
       ]);
       setSelectedFiles([]);
+      setDescription("");
       setStatus(data.message);
 
       const fileInput = event.currentTarget.elements.namedItem(
@@ -141,11 +181,11 @@ function App() {
 
   const refreshDownloadUrl = async (picture: UploadedPicture) => {
     try {
-      const data = await fetchWithAuth<{
+      const data = await requestJson<{
         key: string;
         download_url: string;
       }>(
-        `${PICTURE_TRANSFER_PATH}/download-url?key=${encodeURIComponent(
+        `${PICTURE_TRANSFER_URL}/download-url?key=${encodeURIComponent(
           picture.key,
         )}`,
       );
@@ -173,10 +213,10 @@ function App() {
       <section className="toolbar">
         <div>
           <p className="eyebrow">Picture Transfer</p>
-          <h1>Upload and download pictures</h1>
+          <h1>Subir y descargar fotos</h1>
         </div>
         <button className="secondary-button" type="button" onClick={loadPictures}>
-          Refresh
+         actualizar
         </button>
       </section>
 
@@ -189,10 +229,27 @@ function App() {
             onChange={handleFileChange}
             type="file"
           />
-          <span className="drop-title">Choose pictures</span>
+          <span className="drop-title">seleccionar fotos</span>
           <span className="drop-copy">
-            Up to 50 image files, 250 MB each.
+            hasta 50 archivos de imagen
           </span>
+        </label>
+
+        <label className="description-field">
+          <span>Description</span>
+          <textarea
+            maxLength={500}
+            name="description"
+            onChange={(event) => {
+              setDescription(event.target.value);
+              setStatus("");
+              setError("");
+            }}
+            placeholder="Add a short description for this upload"
+            required
+            rows={4}
+            value={description}
+          />
         </label>
 
         <div className="upload-actions">
@@ -206,7 +263,11 @@ function App() {
           </div>
           <button
             className="primary-button"
-            disabled={isUploading || selectedFiles.length === 0}
+            disabled={
+              isUploading ||
+              selectedFiles.length === 0 ||
+              description.trim().length === 0
+            }
             type="submit"
           >
             {isUploading ? "Uploading..." : "Upload"}
@@ -236,6 +297,9 @@ function App() {
                 </a>
                 <div className="picture-meta">
                   <strong title={picture.file_name}>{picture.file_name}</strong>
+                  {picture.description && (
+                    <p title={picture.description}>{picture.description}</p>
+                  )}
                   <span>
                     {formatBytes(picture.size_bytes)}
                     {picture.uploaded_at

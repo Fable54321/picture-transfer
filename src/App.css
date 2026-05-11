@@ -14,7 +14,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -106,6 +107,32 @@ h2 {
 
 .drop-copy {
   color: #526174;
+}
+
+.description-field {
+  display: grid;
+  gap: 8px;
+}
+
+.description-field span {
+  color: #334155;
+  font-weight: 800;
+}
+
+.description-field textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid #c7d2df;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #18212f;
+  background: #ffffff;
+}
+
+.description-field textarea:focus {
+  border-color: #0f766e;
+  outline: 3px solid rgba(15, 118, 110, 0.16);
 }
 
 .upload-actions,
@@ -239,6 +266,15 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.picture-meta p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #334155;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .picture-actions {
