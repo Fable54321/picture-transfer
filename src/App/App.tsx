@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import { fetchWithAuth } from "../Utils/fetchWithAuth";
 import "../App.css";
 
 type UploadedPicture = {
@@ -23,8 +24,7 @@ type UploadPicturesResponse = {
   pictures: UploadedPicture[];
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const PICTURE_TRANSFER_URL = `${API_BASE_URL}/picture-transfer`;
+const PICTURE_TRANSFER_PATH = "/picture-transfer";
 
 const formatBytes = (bytes: number) => {
   if (bytes === 0) {
@@ -41,15 +41,6 @@ const formatBytes = (bytes: number) => {
   return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${
     units[exponent]
   }`;
-};
-
-const getErrorMessage = async (response: Response) => {
-  try {
-    const body = (await response.json()) as { error?: string };
-    return body.error || `Request failed with status ${response.status}`;
-  } catch {
-    return `Request failed with status ${response.status}`;
-  }
 };
 
 function App() {
@@ -70,13 +61,9 @@ function App() {
     setError("");
 
     try {
-      const response = await fetch(`${PICTURE_TRANSFER_URL}?limit=100`);
-
-      if (!response.ok) {
-        throw new Error(await getErrorMessage(response));
-      }
-
-      const data = (await response.json()) as ListPicturesResponse;
+      const data = await fetchWithAuth<ListPicturesResponse>(
+        `${PICTURE_TRANSFER_PATH}?limit=100`,
+      );
       setPictures(data.pictures);
     } catch (loadError) {
       setError(
@@ -115,16 +102,14 @@ function App() {
     setStatus("");
 
     try {
-      const response = await fetch(PICTURE_TRANSFER_URL, {
-        method: "POST",
-        body: formData,
-      });
+      const data = await fetchWithAuth<UploadPicturesResponse>(
+        PICTURE_TRANSFER_PATH,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
-      if (!response.ok) {
-        throw new Error(await getErrorMessage(response));
-      }
-
-      const data = (await response.json()) as UploadPicturesResponse;
       setPictures((currentPictures) => [
         ...data.pictures,
         ...currentPictures.filter(
@@ -156,20 +141,14 @@ function App() {
 
   const refreshDownloadUrl = async (picture: UploadedPicture) => {
     try {
-      const response = await fetch(
-        `${PICTURE_TRANSFER_URL}/download-url?key=${encodeURIComponent(
+      const data = await fetchWithAuth<{
+        key: string;
+        download_url: string;
+      }>(
+        `${PICTURE_TRANSFER_PATH}/download-url?key=${encodeURIComponent(
           picture.key,
         )}`,
       );
-
-      if (!response.ok) {
-        throw new Error(await getErrorMessage(response));
-      }
-
-      const data = (await response.json()) as {
-        key: string;
-        download_url: string;
-      };
 
       setPictures((currentPictures) =>
         currentPictures.map((currentPicture) =>
