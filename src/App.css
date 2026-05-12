@@ -112,6 +112,7 @@ h2 {
 .description-field {
   display: grid;
   gap: 8px;
+  
 }
 
 .description-field span {
@@ -149,6 +150,13 @@ h2 {
   border: 1px solid #d8e0ea;
   border-radius: 8px;
   background: #f8fafc;
+}
+
+@media (max-width: 640px) {
+  .selected-picture {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .selected-picture img {
