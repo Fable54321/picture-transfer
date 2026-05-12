@@ -86,8 +86,8 @@ function App() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState("");
-  const [status, setStatus] = useState("");
+  const [,setError] = useState("");
+  const [,setStatus] = useState("");
 
   const selectedSize = useMemo(
     () =>
@@ -119,7 +119,34 @@ function App() {
   };
 
   useEffect(() => {
-    void loadPictures();
+    let isCurrent = true;
+
+    void requestJson<ListPicturesResponse>(
+      `${PICTURE_TRANSFER_URL}?limit=100`,
+    )
+      .then((data) => {
+        if (isCurrent) {
+          setPictures(data.pictures);
+        }
+      })
+      .catch((loadError) => {
+        if (isCurrent) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Failed to load pictures",
+          );
+        }
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, []);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -240,7 +267,7 @@ function App() {
         ),
       );
 
-      window.location.href = data.download_url;
+      window.location.assign(data.download_url);
     } catch (downloadError) {
       setError(
         downloadError instanceof Error
@@ -345,9 +372,8 @@ function App() {
           </button>
         </div>
       </form>
-
-      {error && <p className="notice error">{error}</p>}
-      {status && <p className="notice success">{status}</p>}
+      
+     
 
       <section className="picture-section">
         <div className="section-heading">
