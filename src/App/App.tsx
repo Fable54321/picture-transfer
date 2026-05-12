@@ -3,12 +3,13 @@ import type { ChangeEvent, FormEvent } from "react";
 import "../App.css";
 
 type UploadedPicture = {
+  id: number;
   key: string;
   file_name: string;
-  description?: string;
+  description?: string | null;
   content_type?: string;
   size_bytes: number;
-  uploaded_at?: string;
+  created_at?: string;
   view_url: string;
   download_url: string;
 };
@@ -22,8 +23,6 @@ type SelectedPicture = {
 
 type ListPicturesResponse = {
   pictures: UploadedPicture[];
-  next_continuation_token: string | null;
-  is_truncated: boolean;
 };
 
 type UploadPicturesResponse = {
@@ -374,9 +373,9 @@ function App() {
                   )}
                   <span>
                     {formatBytes(picture.size_bytes)}
-                    {picture.uploaded_at
-                      ? ` - ${new Date(picture.uploaded_at).toLocaleString()}`
-                      : ""}
+                    {picture.created_at
+  ? ` - ${new Date(picture.created_at).toLocaleString()}`
+  : ""}
                   </span>
                 </div>
                 <div className="picture-actions">
