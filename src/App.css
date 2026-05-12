@@ -232,7 +232,8 @@ h2 {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.cancel-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -273,6 +274,11 @@ h2 {
 .secondary-button:hover {
   border-color: #8da1ba;
   background: #f7fafc;
+}
+
+.cancel-button {
+  background-color: #ff0000;
+  color: #ffffff;
 }
 
 .notice {

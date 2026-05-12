@@ -254,7 +254,7 @@ function App() {
   const handleDelete = async (picture: UploadedPicture) => {
     try {
       await requestJson<void>(
-        `${PICTURE_TRANSFER_URL}/delete?key=${encodeURIComponent(picture.key)}`,
+        `${PICTURE_TRANSFER_URL}?key=${encodeURIComponent(picture.key)}`,
         { method: "DELETE" },
       );
       setPictures((currentPictures) =>
@@ -386,7 +386,7 @@ function App() {
                     rel="noreferrer"
                     target="_blank"
                   >
-                    View
+                    Ver
                   </a>
                   <button
                     className="primary-button"
@@ -396,7 +396,7 @@ function App() {
                     Download
                   </button>
                   <button
-                    className="secondary-button"
+                    className="cancel-button"
                     onClick={() => void handleDelete(picture)}
                     type="button"
                   >
