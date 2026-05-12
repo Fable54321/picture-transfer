@@ -251,6 +251,24 @@ function App() {
     }
   };
 
+  const handleDelete = async (picture: UploadedPicture) => {
+    try {
+      await requestJson<void>(
+        `${PICTURE_TRANSFER_URL}/delete?key=${encodeURIComponent(picture.key)}`,
+        { method: "DELETE" },
+      );
+      setPictures((currentPictures) =>
+        currentPictures.filter((currentPicture) => currentPicture.key !== picture.key),
+      );
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete picture",
+      );
+    }
+  };
+
   return (
     <main className="app-shell">
       <section className="toolbar">
@@ -376,6 +394,13 @@ function App() {
                     type="button"
                   >
                     Download
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => void handleDelete(picture)}
+                    type="button"
+                  >
+                    Borrar
                   </button>
                 </div>
               </article>
