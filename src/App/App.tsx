@@ -86,8 +86,9 @@ function App() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [,setError] = useState("");
-  const [,setStatus] = useState("");
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
 
   const selectedSize = useMemo(
     () =>
@@ -277,6 +278,69 @@ function App() {
     }
   };
 
+  const handleDownloadAll = async () => {
+    if (pictures.length === 0 || isDownloadingAll) {
+      return;
+    }
+
+    setIsDownloadingAll(true);
+    setError("");
+    setStatus("");
+
+    try {
+      const refreshedPictures = await Promise.all(
+        pictures.map(async (picture) => {
+          const data = await requestJson<{
+            key: string;
+            download_url: string;
+          }>(
+            `${PICTURE_TRANSFER_URL}/download-url?key=${encodeURIComponent(
+              picture.key,
+            )}`,
+          );
+
+          return { ...picture, download_url: data.download_url };
+        }),
+      );
+
+      setPictures((currentPictures) =>
+        currentPictures.map((currentPicture) => {
+          const refreshedPicture = refreshedPictures.find(
+            (picture) => picture.key === currentPicture.key,
+          );
+
+          return refreshedPicture ?? currentPicture;
+        }),
+      );
+
+      refreshedPictures.forEach((picture, index) => {
+        window.setTimeout(() => {
+          const link = document.createElement("a");
+          link.href = picture.download_url;
+          link.download = picture.file_name;
+          link.rel = "noreferrer";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }, index * 250);
+      });
+
+      setStatus(
+        refreshedPictures.length === 1
+          ? "Download started."
+          : `${refreshedPictures.length} downloads started.`,
+      );
+    } catch (downloadError) {
+      setError(
+        downloadError instanceof Error
+          ? downloadError.message
+          : "Failed to download all pictures",
+      );
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  };
+
   const handleDelete = async (picture: UploadedPicture) => {
     try {
       await requestJson<void>(
@@ -372,13 +436,24 @@ function App() {
           </button>
         </div>
       </form>
-      
-     
+
+      {error && <p className="notice error">{error}</p>}
+      {status && <p className="notice success">{status}</p>}
 
       <section className="picture-section">
         <div className="section-heading">
-          <h2>Fotos</h2>
-          <span>{pictures.length} disponibles</span>
+          <div>
+            <h2>Fotos</h2>
+            <span>{pictures.length} disponibles</span>
+          </div>
+          <button
+            className="primary-button"
+            disabled={isLoading || isDownloadingAll || pictures.length === 0}
+            onClick={() => void handleDownloadAll()}
+            type="button"
+          >
+            {isDownloadingAll ? "preparando..." : "Download all"}
+          </button>
         </div>
 
         {isLoading ? (

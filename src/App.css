@@ -219,10 +219,23 @@ h2 {
 .picture-actions,
 .section-heading {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.upload-actions,
+.picture-actions {
+  flex-direction: column;
+}
+
+.section-heading {
+  flex-direction: row;
+}
+
+.section-heading > div {
+  display: grid;
+  gap: 4px;
 }
 
 .upload-actions div,
