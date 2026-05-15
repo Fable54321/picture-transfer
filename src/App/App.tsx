@@ -87,7 +87,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
-  const [error, setError] = useState("");
+  const [, setError] = useState("");
   const [status, setStatus] = useState("");
 
   const selectedSize = useMemo(
@@ -179,9 +179,9 @@ function App() {
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const picturesToUpload = selectedPictures;
 
-    if (selectedPictures.length === 0) {
-      setError("Choose at least one picture to upload.");
+    if (picturesToUpload.length === 0) {
       return;
     }
 
@@ -191,7 +191,7 @@ function App() {
 
     try {
       const uploadedPictureGroups = await Promise.all(
-        selectedPictures.map((selectedPicture) => {
+        picturesToUpload.map((selectedPicture) => {
           const formData = new FormData();
           formData.append("description", selectedPicture.description.trim());
           formData.append("pictures", selectedPicture.file);
@@ -203,7 +203,7 @@ function App() {
         }),
       );
       const uploadedPictures = uploadedPictureGroups.flatMap((data, index) => {
-        const description = selectedPictures[index]?.description.trim();
+        const description = picturesToUpload[index]?.description.trim();
 
         return data.pictures.map((picture) => ({
           ...picture,
@@ -437,7 +437,6 @@ function App() {
         </div>
       </form>
 
-      {error && <p className="notice error">{error}</p>}
       {status && <p className="notice success">{status}</p>}
 
       <section className="picture-section">
